@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outdoor Patio Supplies — Live Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #060d1a;
+      --card:        #0d1e38;
+      --border:      rgba(99,179,237,0.13);
+      --text:        #d6eaff;
+      --muted:       #7ea8cc;
+      --blue-dark:   #93c5fd;
+      --blue:        #3b82f6;
+      --blue-mid:    #60a5fa;
+      --blue-light:  rgba(59,130,246,0.16);
+      --green:       #34d399;
+      --green-bg:    rgba(52,211,153,0.13);
+      --red:         #f87171;
+      --red-bg:      rgba(248,113,113,0.13);
+      --orange:      #fb923c;
+      --orange-bg:   rgba(251,146,60,0.13);
+      --yellow:      #fbbf24;
+      --yellow-bg:   rgba(251,191,36,0.12);
+      --teal:        #22d3ee;
+      --shadow:      0 2px 16px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,179,237,0.08);
+      --shadow-md:   0 8px 36px rgba(0,0,0,0.65), 0 0 0 1px rgba(99,179,237,0.13);
+      --gap:         10px;
+      --pad:         14px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    /* ── Auto-zoom tour ──────────────────────────────────────────────────── */
+    html {
+      transform-origin: 50% 50%;
+      transform: scale(1);
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                  transform-origin 0s;
+    }
+    /* Subtle vignette while zoomed */
+    html.zoom-active::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 120px 60px rgba(0,0,0,0.55);
+      z-index: 1000;
+    }
+    /* Section label — bottom-center */
+    #zoomStopLabel {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: rgba(6,13,26,0.90);
+      color: #93c5fd;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 7px 22px;
+      border-radius: 30px;
+      border: 1px solid rgba(99,179,237,0.30);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.50);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s, transform 0.4s;
+      z-index: 1001;
+    }
+    #zoomStopLabel.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(4,10,22,0.72), rgba(4,10,22,0.72)),
+        url('https://outdoorpatiosupplies.com/wp-content/uploads/2025/09/DSC_0321-2-2-scaled.jpg.webp');
+      background-size: auto, cover;
+      background-position: center, center;
+      background-attachment: fixed, fixed;
+      background-repeat: no-repeat, no-repeat;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      background: rgba(6,13,26,0.82);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border-bottom: 1px solid rgba(99,179,237,0.14);
+      padding: 10px var(--pad);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 16px;
+      box-shadow: 0 4px 28px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .header-logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .header-logo {
+      height: 40px;
+      width: auto;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+    .header-divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255,255,255,0.25);
+    }
+    .header-left { display: flex; flex-direction: column; gap: 1px; }
+    .header h1   { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: 0.05em; text-transform: uppercase; }
+    .header-sub  { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+    .header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+    .pulse-wrap { display: flex; align-items: center; gap: 7px; }
+    .pulse-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74,222,128,0.5);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(74,222,128,0.5); }
+      70%  { box-shadow: 0 0 0 9px rgba(74,222,128,0); }
+      100% { box-shadow: 0 0 0 0   rgba(74,222,128,0); }
+    }
+    .last-updated { font-size: 20px; color: rgba(255,255,255,0.9); white-space: nowrap; font-weight: 700; letter-spacing: 0.02em; }
+
+    .nav-btn {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      padding: 5px 13px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.2s;
+      letter-spacing: 0.03em;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.28); }
+
+    .voice-btn {
+      background: rgba(139,92,246,0.25);
+      color: #fff;
+      border: 1px solid rgba(139,92,246,0.55);
+      border-radius: 8px;
+      padding: 5px 13px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s;
+      letter-spacing: 0.03em;
+    }
+    .voice-btn:hover { background: rgba(139,92,246,0.4); }
+    .voice-btn--speaking {
+      background: rgba(139,92,246,0.5);
+      border-color: rgba(139,92,246,0.9);
+      animation: voice-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes voice-pulse {
+      0%, 100% { box-shadow: 0 0 0 0   rgba(139,92,246,0.5); }
+      50%       { box-shadow: 0 0 0 7px rgba(139,92,246,0);   }
+    }
+
+    /* ── Main ────────────────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: var(--pad);
+      gap: var(--gap);
+      overflow: hidden;
+    }
+
+    /* ── Top section (map + KPIs) ────────────────────────────────────── */
+    .top-section {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: var(--gap);
+      flex-shrink: 0;
+      align-items: stretch;
+    }
+    .map-top-card {
+      background: rgba(6,13,26,0.70);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border: 1px solid var(--border);
+      border-top: 1px solid #d28939;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      min-height: 130px;
+    }
+    .map-top-card #gaMap {
+      height: 100%;
+      width: 100%;
+      min-height: 130px;
+    }
+
+    /* ── KPI row ─────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--gap);
+    }
+    .kpi-card {
+      background: rgba(10,22,48,0.78);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+      border-top: 2px solid var(--blue-mid);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card.card-yellow { border-top-color: #fbbf24; }
+    .kpi-card.card-orange { border-top-color: #fb923c; }
+    .kpi-card.card-blue   { border-top-color: #60a5fa; }
+    .kpi-card.card-green  { border-top-color: #34d399; }
+    .kpi-card.card-purple { border-top-color: #a78bfa; }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 80px; height: 80px;
+      background: radial-gradient(circle at top right, rgba(96,165,250,0.20), transparent 70%);
+      border-radius: 0 0 0 80px;
+    }
+    .kpi-label { font-size: 12px; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+    .kpi-value { font-size: 54px; font-weight: 800; line-height: 1; color: var(--blue-dark); letter-spacing: -0.02em; transition: color 0.3s; }
+    .kpi-value.green  { color: var(--green); }
+    .kpi-value.orange { color: var(--orange); }
+    .kpi-value.blue   { color: var(--blue-mid); }
+    .kpi-value.yellow { color: #fbbf24; }
+    .kpi-value.purple { color: #a78bfa; }
+    /* Counter direction flash */
+    .counter-up   { color: #4ade80 !important; }
+    .counter-down { color: #f87171 !important; }
+
+    /* (responsive @media blocks are at the bottom of this <style> tag) */
+
+    .kpi-sub   { font-size: 13px; color: #ffffff; margin-top: 5px; font-weight: 500; }
+
+    /* ── Device breakdown badges ─────────────────────────────────────────── */
+    .ga-devices-row {
+      display: flex;
+      gap: 8px;
+      padding: 8px 16px;
+      border-bottom: 1px solid rgba(217,119,6,0.18);
+      flex-shrink: 0;
+    }
+    .ga-device-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(217,119,6,0.09);
+      border: 1px solid rgba(217,119,6,0.24);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+      justify-content: center;
+    }
+    .ga-device-badge strong { color: #fbbf24; font-size: 15px; }
+
+    /* ── Content grid ────────────────────────────────────────────────────── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: var(--gap);
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Panel card ──────────────────────────────────────────────────────── */
+    .panel {
+      background: rgba(8,20,42,0.78);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .panel.panel-carts  { background: rgba(8,20,50,0.78); border: 1px solid rgba(59,130,246,0.22); }
+    .panel.panel-orders { background: rgba(4,20,12,0.78); border: 1px solid rgba(52,211,153,0.18); }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      padding: 10px 16px;
+    }
+    .panel.panel-carts  .panel-header { background: linear-gradient(135deg, #1e3a6e 0%, #2563eb 100%); }
+    .panel.panel-orders .panel-header { background: linear-gradient(135deg, #052e16 0%, #16a34a 100%); }
+    .panel-body {
+      flex: 1;
+      min-height: 0;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-title { font-size: 14px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
+    .panel-count {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+    .panel-count.carts  { background: rgba(255,255,255,0.20); color: #fff; }
+    .panel-count.orders { background: rgba(255,255,255,0.20); color: #fff; }
+    .panel-count.ga4    { background: rgba(217,119,6,0.15); color: #fbbf24; }
+    .mock-btn {
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75);
+      border: 1px dashed rgba(255,255,255,0.30);
+      border-radius: 6px;
+      padding: 2px 9px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 0.04em;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mock-btn:hover { background: rgba(255,255,255,0.25); color: #fff; }
+
+    /* ── Row list ────────────────────────────────────────────────────────── */
+    .row-list {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      justify-content: space-between;
+    }
+
+    .row-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      border-bottom: 1px solid var(--border);
+      padding: 4px 6px;
+      min-height: 0;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .row-item:hover { background: var(--blue-light); }
+    .row-item:last-child { border-bottom: none; }
+
+    .row-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .row-icon.cart   { background: var(--green-bg);  }
+    .row-icon.paid   { background: var(--green-bg);  }
+    .row-icon.proc   { background: var(--orange-bg); }
+    .row-icon.pend   { background: var(--blue-light);}
+
+    .row-main { flex: 1; min-width: 0; }
+    .row-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row-sub { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+    .row-right { text-align: right; flex-shrink: 0; }
+    .row-total { font-size: 20px; font-weight: 800; color: #ffffff; }
+    .row-time  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-paid    { background: rgba(52,211,153,0.15);  color: #34d399; }
+    .badge-proc    { background: rgba(251,146,60,0.15);   color: #fb923c; }
+    .badge-shipped { background: rgba(34,211,238,0.15);   color: #22d3ee; }
+    .badge-pend    { background: rgba(148,163,184,0.12);  color: #94a3b8; }
+
+    .leaflet-container { font-family: inherit; }
+    .leaflet-tooltip {
+      font-size: 12px;
+      font-weight: 700;
+      background: #1e293b;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .leaflet-tooltip::before { display: none; }
+
+    /* GA Countries section */
+    .ga-countries-section {
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(217,119,6,0.18);
+    }
+    .ga-section-header {
+      display: flex;
+      padding: 5px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid rgba(217,119,6,0.15);
+    }
+    .ga-section-header span:first-child { flex: 1; }
+    .ga-country-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 16px;
+      border-bottom: 1px solid rgba(217,119,6,0.09);
+      transition: background 0.15s;
+    }
+    .ga-country-row:hover { background: rgba(217,119,6,0.08); }
+    .ga-country-row:last-child { border-bottom: none; }
+    .ga-country-flag { font-size: 18px; flex-shrink: 0; line-height: 1; }
+    .ga-country-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
+    .ga-country-bar-wrap { width: 50px; flex-shrink: 0; }
+    .ga-country-count { font-size: 17px; font-weight: 800; color: #fbbf24; min-width: 24px; text-align: right; flex-shrink: 0; }
+
+    /* GA Realtime Panel ────────────────────────────────────────────── */
+    .ga-panel {
+      background: rgba(22,10,0,0.80);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border: 1px solid rgba(217,119,6,0.22);
+      border-radius: 14px;
+      box-shadow: var(--shadow), 0 0 0 1px rgba(217,119,6,0.06);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .ga-panel-header {
+      background: linear-gradient(135deg, #78350f 0%, #d97706 100%);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .ga-panel-title { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: 0.04em; text-transform: uppercase; }
+    .ga-panel-badge {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+    .ga-metrics-row {
+      display: flex;
+      gap: 0;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(217,119,6,0.20);
+    }
+    .ga-metric-block {
+      flex: 1;
+      padding: 12px 16px 10px;
+      border-right: 1px solid rgba(217,119,6,0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ga-metric-block:last-child { border-right: none; }
+    .ga-metric-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #d97706;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .ga-metric-value {
+      font-size: 48px;
+      font-weight: 900;
+      line-height: 1;
+      color: #ffffff;
+      transition: color 0.3s;
+    }
+    .ga-metric-sub { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    /* Sparkline */
+    .ga-sparkline-wrap {
+      padding: 8px 16px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(217,119,6,0.18);
+    }
+    .ga-sparkline-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .ga-sparkline {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 36px;
+    }
+    .ga-spark-bar {
+      flex: 1;
+      background: rgba(217,119,6,0.30);
+      border-radius: 2px 2px 0 0;
+      min-height: 2px;
+      transition: height 0.4s ease, background 0.3s;
+    }
+    .ga-spark-bar.recent { background: #d97706; }
+
+    /* Pages list */
+    .ga-pages-list {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .ga-pages-header {
+      display: flex;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid rgba(217,119,6,0.15);
+      flex-shrink: 0;
+    }
+    .ga-pages-header span:first-child { flex: 1; }
+    .ga-pages-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .ga-page-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      border-bottom: 1px solid rgba(217,119,6,0.09);
+      padding: 3px 16px;
+      min-height: 0;
+      transition: background 0.15s;
+    }
+    .ga-page-row:hover  { background: rgba(217,119,6,0.08); }
+    .ga-page-row:last-child { border-bottom: none; }
+    .ga-page-rank { font-size: 13px; color: var(--muted); font-weight: 700; min-width: 18px; }
+    .ga-page-info { flex: 1; min-width: 0; }
+    .ga-page-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ga-page-bar-wrap {
+      width: 60px;
+      flex-shrink: 0;
+    }
+    .ga-bar-track { height: 4px; background: rgba(217,119,6,0.15); border-radius: 4px; overflow: hidden; }
+    .ga-bar-fill  { height: 100%; background: linear-gradient(90deg, #d97706, #fbbf24); border-radius: 4px; transition: width 0.6s ease; }
+
+    /* Cart / checkout page highlight */
+    @keyframes cart-pulse {
+      0%, 100% { background: rgba(251,191,36,0.00); border-left-color: transparent; }
+      50%       { background: rgba(251,191,36,0.18); border-left-color: #fbbf24; }
+    }
+    .ga-page-hot {
+      border-left: 3px solid #fbbf24;
+      animation: cart-pulse 1.4s ease-in-out infinite;
+    }
+    .ga-page-hot .ga-page-title { color: #fbbf24; }
+    .ga-page-hot .ga-page-rank  { color: #fbbf24; }
+    .ga-page-hot .ga-page-count { color: #fbbf24; font-weight: 800; }
+    .ga-page-count {
+      font-size: 18px;
+      font-weight: 800;
+      color: #fbbf24;
+      min-width: 28px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .ga-not-configured {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex: 1;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      padding: 10px;
+    }
+    .ga-not-configured a { color: var(--blue); font-weight: 700; font-size: 12px; }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 17px;
+      gap: 8px;
+      font-weight: 500;
+    }
+
+    /* ── Cart Alert overlay ─────────────────────────────────────────────── */
+    .cart-alert-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,42,74,0.72);
+      backdrop-filter: blur(5px) saturate(160%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .cart-alert-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .cart-alert-box {
+      background: #fff;
+      border: 3px solid #2563eb;
+      border-radius: 24px;
+      padding: 0;
+      max-width: 760px;
+      width: 92%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(37,99,235,0.30);
+      animation: alertPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      display: flex;
+      overflow: hidden;
+    }
+    .cart-alert-logo-col {
+      width: 160px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #1e40af 0%, #2563eb 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+    }
+    .cart-alert-logo-col img {
+      width: 100%;
+      max-width: 120px;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    .cart-alert-content {
+      flex: 1;
+      padding: 36px 44px;
+      min-width: 0;
+    }
+    .cart-alert-icon  { font-size: 64px; margin-bottom: 10px; }
+    .cart-alert-badge {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 20px;
+      border-radius: 20px;
+      margin-bottom: 18px;
+    }
+    .cart-alert-name    { font-size: 38px; font-weight: 900; color: var(--blue-dark); margin-bottom: 6px; line-height: 1.1; }
+    .cart-alert-email   { font-size: 18px; color: var(--muted); font-weight: 600; margin-bottom: 14px; }
+    .cart-alert-product { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 4px; line-height: 1.2; }
+    .cart-alert-items   { font-size: 18px; color: var(--muted); font-weight: 600; margin-bottom: 22px; }
+    .cart-alert-total   { font-size: 78px; font-weight: 900; color: var(--blue); margin-bottom: 22px; line-height: 1; }
+    .cart-alert-bar     { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+    .cart-alert-bar-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa); width: 100%; transition: width linear; }
+    .cart-alert-close   {
+      font-size: 13px; color: var(--muted); cursor: pointer;
+      background: none; border: none; padding: 4px 12px;
+      font-weight: 500;
+    }
+    .cart-alert-close:hover { color: var(--text); }
+
+    /* ── Alert overlay ────────────────────────────────────────────────────── */
+    .alert-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,42,74,0.72);
+      backdrop-filter: blur(5px) saturate(160%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .alert-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .alert-box {
+      background: #fff;
+      border: 3px solid #16a34a;
+      border-radius: 24px;
+      padding: 0;
+      max-width: 760px;
+      width: 92%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(22,163,74,0.30);
+      animation: alertPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      display: flex;
+      overflow: hidden;
+    }
+    @keyframes alertPop {
+      from { transform: scale(0.75); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .alert-logo-col {
+      width: 160px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #052e16 0%, #16a34a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+    }
+    .alert-logo-col img {
+      width: 100%;
+      max-width: 120px;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    .alert-content {
+      flex: 1;
+      padding: 36px 44px;
+      min-width: 0;
+    }
+    .alert-icon   { font-size: 64px; margin-bottom: 10px; }
+    .alert-badge  {
+      display: inline-block;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 20px;
+      border-radius: 20px;
+      margin-bottom: 18px;
+    }
+    .alert-name    { font-size: 38px; font-weight: 900; color: var(--blue-dark); margin-bottom: 6px; line-height: 1.1; }
+    .alert-order   { font-size: 18px; color: #16a34a; font-weight: 700; margin-bottom: 14px; }
+    .alert-product { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 4px; line-height: 1.2; }
+    .alert-items   { font-size: 18px; color: var(--muted); font-weight: 600; margin-bottom: 22px; }
+    .alert-total  { font-size: 78px; font-weight: 900; color: #16a34a; margin-bottom: 22px; line-height: 1; }
+    .alert-bar    { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+    .alert-bar-fill { height: 100%; background: linear-gradient(90deg, #16a34a, #22c55e); width: 100%; transition: width linear; }
+    .alert-close  {
+      font-size: 13px; color: var(--muted); cursor: pointer;
+      background: none; border: none; padding: 4px 12px;
+      font-weight: 500;
+    }
+    .alert-close:hover { color: var(--text); }
+
+    /* ══════════════════════════════════════════════════════════════════════
+       RESPONSIVE — must come LAST so they override base rules above
+    ══════════════════════════════════════════════════════════════════════ */
+
+    /* ── Tablet (601–960px) ─────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      :root { --pad: 14px; --gap: 12px; }
+      .top-section  { grid-template-columns: 1fr; }
+      .map-top-card { min-height: 200px; }
+      .kpi-grid     { grid-template-columns: repeat(2, 1fr); }
+      .content-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Mobile (≤768px) ────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      :root { --pad: 14px; --gap: 12px; }
+
+      /* Full page scroll */
+      html, body { height: auto; overflow: auto; }
+      body { display: block; }
+
+      /* Header: sticky two-row layout */
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px var(--pad);
+      }
+      .header-logo-wrap { gap: 12px; }
+      .header-logo     { height: 34px; }
+      .header-divider  { height: 24px; }
+      .header h1       { font-size: 18px; letter-spacing: 0.03em; }
+      .header-sub      { font-size: 10px; }
+      .header-right    { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+      .last-updated    { font-size: 15px; }
+      .voice-btn, .nav-btn { font-size: 13px; padding: 6px 14px; }
+
+      /* Main: natural flow */
+      .main { height: auto; overflow: visible; padding: var(--pad); gap: var(--gap); }
+
+      /* Top section: single column — map visible above KPIs */
+      .top-section  { grid-template-columns: 1fr; }
+      .map-top-card { display: block; min-height: 220px; }
+
+      /* KPIs: 2 columns, large numbers */
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .kpi-card { padding: 18px 16px; }
+      .kpi-label { font-size: 12px; }
+      .kpi-value { font-size: 44px; }
+
+      /* Panels: single column, each takes full width */
+      .content-grid { grid-template-columns: 1fr; }
+
+      /* Panel internals — keep readable sizes */
+      .panel-header  { padding: 14px 16px; }
+      .panel-title   { font-size: 16px; }
+      .panel-count   { font-size: 14px; }
+      .mock-btn      { font-size: 12px; padding: 4px 10px; }
+
+      /* Row items in carts/orders lists */
+      .row-item  { padding: 12px 14px; gap: 12px; }
+      .row-icon  { font-size: 26px; }
+      .row-title { font-size: 15px; }
+      .row-sub   { font-size: 13px; }
+      .row-total { font-size: 18px; }
+      .row-time  { font-size: 12px; }
+      .badge     { font-size: 13px; padding: 4px 12px; }
+
+      /* GA panel */
+      .ga-panel-header  { padding: 14px 16px; }
+      .ga-panel-title   { font-size: 16px; }
+      .ga-panel-badge   { font-size: 14px; }
+      .ga-metric-label  { font-size: 13px; }
+      .ga-metric-value  { font-size: 48px; }
+      .ga-metric-sub    { font-size: 13px; }
+      .ga-sparkline-wrap { display: none; }
+      .ga-devices-row   { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+      .ga-device-badge  { font-size: 14px; padding: 6px 14px; }
+      .ga-page-row      { padding: 10px 16px; }
+      .ga-page-title    { font-size: 14px; }
+      .ga-page-users    { font-size: 13px; }
+      .ga-country-row   { padding: 8px 16px; }
+      .ga-country-name  { font-size: 15px; }
+      .ga-country-count { font-size: 18px; }
+
+      /* Alert popups: single-column layout */
+      .cart-alert-box, .alert-box {
+        flex-direction: column;
+        max-width: 96vw;
+        border-radius: 20px;
+      }
+      .cart-alert-logo-col, .alert-logo-col {
+        width: 100%;
+        height: 90px;
+        padding: 0 20px;
+        flex-direction: row;
+        justify-content: center;
+        gap: 14px;
+      }
+      .cart-alert-logo-col img, .alert-logo-col img {
+        height: 56px;
+        width: auto;
+        max-width: none;
+      }
+      .cart-alert-content, .alert-content { padding: 24px 24px 28px; }
+      .cart-alert-icon, .alert-icon       { font-size: 48px; }
+      .cart-alert-name, .alert-name       { font-size: 30px; }
+      .cart-alert-email                   { font-size: 16px; }
+      .cart-alert-product, .alert-product { font-size: 22px; }
+      .cart-alert-items, .alert-items     { font-size: 16px; }
+      .cart-alert-total, .alert-total     { font-size: 60px; }
+      .alert-order                        { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo-wrap">
+    <img src="https://outdoorpatiosupplies.com/wp-content/uploads/2026/01/outdoorpatiosupplies-logo.png.webp"
+         alt="Outdoor Patio Supplies" class="header-logo"
+         onerror="this.style.display='none'" />
+    <div class="header-divider"></div>
+    <div class="header-left">
+      <h1>Live Store Telemetry</h1>
+      <span class="header-sub">What's happening in the store right now</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="pulse-wrap">
+      <div class="pulse-dot"></div>
+      <span class="last-updated" id="lastUpdated">Connecting…</span>
+    </div>
+    <button class="voice-btn" id="voiceBtn" title="Read a live store summary aloud">&#128266;&nbsp;Listen</button>
+    <a href="/" class="nav-btn">&#8592;&nbsp;Dashboard</a>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Top section: map card (1/3) + 4 KPI cards (2/3) -->
+  <div class="top-section">
+    <div class="map-top-card">
+      <div id="gaMap" class="map-top-card"></div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card card-blue">
+        <div class="kpi-label">Active carts (30 min)</div>
+        <div class="kpi-value blue" id="kpiActiveCarts">—</div>
+        <div class="kpi-sub" id="kpiCartsTotal">of — total in store</div>
+      </div>
+      <div class="kpi-card card-blue">
+        <div class="kpi-label">Total cart value</div>
+        <div class="kpi-value blue" id="kpiCartsValue">—</div>
+        <div class="kpi-sub">in active carts</div>
+      </div>
+      <div class="kpi-card card-green">
+        <div class="kpi-label">Orders closed (today)</div>
+        <div class="kpi-value green" id="kpiOrdersTotal">—</div>
+        <div class="kpi-sub" id="kpiOrdersPaid">— paid</div>
+      </div>
+      <div class="kpi-card card-green">
+        <div class="kpi-label">Revenue (today)</div>
+        <div class="kpi-value green" id="kpiRevenue30">—</div>
+        <div class="kpi-sub">paid orders</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panels -->
+  <div class="content-grid">
+
+    <!-- GA4 Realtime Panel -->
+    <div class="ga-panel">
+      <div class="ga-panel-header">
+        <span class="ga-panel-title">&#128202; Users online · Google Analytics</span>
+        <span class="ga-panel-badge" id="gaCount">0 online</span>
+      </div>
+
+      <!-- Two big metrics -->
+      <div class="ga-metrics-row">
+        <div class="ga-metric-block">
+          <div class="ga-metric-label">Active · 30 minutes</div>
+          <div class="ga-metric-value" id="kpiGaUsers">—</div>
+          <div class="ga-metric-sub" id="kpiGaSub">users</div>
+        </div>
+        <div class="ga-metric-block">
+          <div class="ga-metric-label">Active · 5 minutes</div>
+          <div class="ga-metric-value" id="kpiGaUsers5">—</div>
+          <div class="ga-metric-sub">last 5 min</div>
+        </div>
+      </div>
+
+      <!-- Sparkline -->
+      <div class="ga-sparkline-wrap">
+        <div class="ga-sparkline-label">Users per interval (history)</div>
+        <div class="ga-sparkline" id="gaSparkline">
+          <!-- bars rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Device breakdown -->
+      <div class="ga-devices-row" id="gaDevicesRow">
+        <span class="ga-device-badge" id="gaMobileBadge">&#128241; Mobile <strong>—</strong></span>
+        <span class="ga-device-badge" id="gaDesktopBadge">&#128187; Desktop <strong>—</strong></span>
+        <span class="ga-device-badge" id="gaTabletBadge">&#128138; Tablet <strong>—</strong></span>
+      </div>
+
+      <!-- Countries -->
+      <div class="ga-countries-section">
+        <div class="ga-section-header">
+          <span>&#127758; Country</span>
+          <span>Users</span>
+        </div>
+        <div id="gaCountriesList"></div>
+      </div>
+
+      <!-- Pages list -->
+      <div class="ga-pages-list">
+        <div class="ga-pages-header">
+          <span>Page title</span>
+          <span>Users</span>
+        </div>
+        <div class="ga-pages-scroll" id="gaPagesList">
+          <div class="empty-state" style="flex:1">&#9203; Waiting for data…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel panel-carts">
+      <div class="panel-header">
+        <span class="panel-title">&#128722; Active carts now</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <!-- <button class="mock-btn" id="mockCartBtn" title="Test cart alert">&#127768; Test</button> -->
+          <span class="panel-count carts" id="cartsCount">0 active</span>
+        </div>
+      </div>
+      <div class="panel-body">
+      <div class="row-list" id="cartsList">
+        <div class="empty-state">&#9203; Waiting for data…</div>
+      </div>
+      </div>
+    </div>
+
+    <div class="panel panel-orders">
+      <div class="panel-header">
+        <span class="panel-title">&#x1F4B2; Recent orders (today)</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <!-- <button class="mock-btn" id="mockOrderBtn" title="Test order alert">&#127768; Test</button> -->
+          <span class="panel-count orders" id="ordersCount">0 orders</span>
+        </div>
+      </div>
+      <div class="panel-body">
+      <div class="row-list" id="ordersList">
+        <div class="empty-state">&#9203; Waiting for data…</div>
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- New cart alert overlay -->
+<div class="cart-alert-overlay" id="cartAlertOverlay">
+  <div class="cart-alert-box">
+    <div class="cart-alert-logo-col">
+      <img src="https://outdoorpatiosupplies.com/wp-content/uploads/2026/01/outdoorpatiosupplies-logo.png.webp"
+           alt="Outdoor Patio Supplies"
+           onerror="this.style.display='none'" />
+    </div>
+    <div class="cart-alert-content">
+    <div class="cart-alert-icon">&#128722;</div>
+    <div class="cart-alert-badge">New cart opened!</div>
+    <div class="cart-alert-name" id="cartAlertName">Customer</div>
+    <div class="cart-alert-email" id="cartAlertEmail"></div>
+    <div class="cart-alert-product" id="cartAlertProduct">Produto</div>
+    <div class="cart-alert-items" id="cartAlertItems">1 item in cart</div>
+    <div class="cart-alert-total" id="cartAlertTotal">$0</div>
+    <div class="cart-alert-bar"><div class="cart-alert-bar-fill" id="cartAlertBarFill"></div></div>
+    <button class="cart-alert-close" id="cartAlertClose">Close (auto-closes in 30s)</button>
+    </div>
+  </div>
+</div>
+
+<!-- New order alert overlay -->
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-box">
+    <div class="alert-logo-col">
+      <img src="https://outdoorpatiosupplies.com/wp-content/uploads/2026/01/outdoorpatiosupplies-logo.png.webp"
+           alt="Outdoor Patio Supplies"
+           onerror="this.style.display='none'" />
+    </div>
+    <div class="alert-content">
+      <div class="alert-icon">&#127881;</div>
+      <div class="alert-badge">New order confirmed!</div>
+      <div class="alert-name" id="alertName">Customer</div>
+      <div class="alert-order" id="alertOrder">#—</div>
+      <div class="alert-product" id="alertProduct">Product</div>
+      <div class="alert-items" id="alertItems">1 item ordered</div>
+      <div class="alert-total" id="alertTotal">$0</div>
+      <div class="alert-bar"><div class="alert-bar-fill" id="alertBarFill"></div></div>
+      <button class="alert-close" id="alertClose">Close (auto-closes in 60s)</button>
+    </div>
+  </div>
+</div>
+
+<div id="zoomStopLabel"></div>
+<script src="telemetry.js"></script>
+</body>

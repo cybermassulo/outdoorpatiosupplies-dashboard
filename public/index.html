@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outdoor Patio Supplies — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #060d1a;
+      --card:        #0d1e38;
+      --border:      rgba(99,179,237,0.13);
+      --text:        #d6eaff;
+      --muted:       #7ea8cc;
+      --blue-dark:   #93c5fd;
+      --blue:        #3b82f6;
+      --blue-mid:    #60a5fa;
+      --blue-light:  rgba(59,130,246,0.16);
+      --green:       #34d399;
+      --green-bg:    rgba(52,211,153,0.13);
+      --red:         #f87171;
+      --red-bg:      rgba(248,113,113,0.13);
+      --orange:      #fb923c;
+      --orange-bg:   rgba(251,146,60,0.13);
+      --teal:        #22d3ee;
+      --shadow:      0 2px 16px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,179,237,0.08);
+      --shadow-md:   0 8px 36px rgba(0,0,0,0.65), 0 0 0 1px rgba(99,179,237,0.13);
+      --gap:         10px;
+      --pad:         14px;
+    }
+
+    html { overflow-x: hidden; }
+    body {
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(4,10,22,0.72), rgba(4,10,22,0.72)),
+        url('https://outdoorpatiosupplies.com/wp-content/uploads/2025/09/DSC_0321-2-2-scaled.jpg.webp');
+      background-size: auto, cover;
+      background-position: center, center;
+      background-attachment: fixed, fixed;
+      background-repeat: no-repeat, no-repeat;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      background: rgba(6,13,26,0.82);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border-bottom: 1px solid rgba(99,179,237,0.14);
+      padding: 10px var(--pad);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 16px;
+      box-shadow: 0 4px 28px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .header-logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .header-logo {
+      height: 40px;
+      width: auto;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+    .header-divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255,255,255,0.25);
+    }
+    .header-left { display: flex; flex-direction: column; gap: 1px; }
+    .header h1   { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: 0.05em; text-transform: uppercase; }
+    .header-sub  { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+    .header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .pulse-wrap { display: flex; align-items: center; gap: 7px; }
+    .pulse-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74,222,128,0.5);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(74,222,128,0.5); }
+      70%  { box-shadow: 0 0 0 9px rgba(74,222,128,0); }
+      100% { box-shadow: 0 0 0 0   rgba(74,222,128,0); }
+    }
+    .updated-at { font-size: 20px; color: rgba(255,255,255,0.9); white-space: nowrap; font-weight: 700; letter-spacing: 0.02em; }
+    .badge-ecwid {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 13px;
+      border-radius: 8px;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    /* ── Main layout ─────────────────────────────────────────────────────── */
+    .main {
+      display: flex;
+      flex-direction: column;
+      padding: var(--pad);
+      gap: var(--gap);
+    }
+
+    /* ── KPI cards ───────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--gap);
+      flex-shrink: 0;
+    }
+    .kpi-card {
+      background: rgba(10,22,48,0.78);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow);
+      border-top: 3px solid var(--blue-mid);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card.kv-green  { border-top-color: var(--green); }
+    .kpi-card.kv-blue   { border-top-color: var(--blue-mid); }
+    .kpi-card.kv-orange { border-top-color: var(--orange); }
+    .kpi-card.kv-red    { border-top-color: var(--red); }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 80px; height: 80px;
+      background: radial-gradient(circle at top right, rgba(96,165,250,0.20), transparent 70%);
+      border-radius: 0 0 0 80px;
+      opacity: 0.5;
+    }
+    .kpi-label  { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi-value  { font-size: 56px; font-weight: 800; line-height: 1; margin-bottom: 8px; color: var(--blue-dark); }
+    .kpi-change { font-size: 14px; display: flex; align-items: center; gap: 5px; font-weight: 600; }
+    .kpi-change.positive { color: var(--green); }
+    .kpi-change.negative { color: var(--red); }
+    .kpi-change.warning  { color: var(--orange); }
+    .kpi-change.neutral  { color: var(--muted); }
+
+    /* ── Chart cards ─────────────────────────────────────────────────────── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap);
+
+    }
+    .card {
+      background: rgba(10,22,48,0.78);
+      backdrop-filter: blur(5px) saturate(160%);
+      -webkit-backdrop-filter: blur(5px) saturate(160%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      flex-shrink: 0;
+    }
+    .card-header.ch-blue   { background: linear-gradient(135deg, #0c2461 0%, #2563eb 100%); }
+    .card-header.ch-purple { background: linear-gradient(135deg, #2d1b69 0%, #7c3aed 100%); }
+    .card-header.ch-green  { background: linear-gradient(135deg, #052e16 0%, #16a34a 100%); }
+    .card-header.ch-orange { background: linear-gradient(135deg, #431407 0%, #ea580c 100%); }
+    .card-header.ch-red    { background: linear-gradient(135deg, #450a0a 0%, #dc2626 100%); }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .card-period-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.15);
+      padding: 2px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .card-body {
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .rank-num  { color: var(--muted); font-size: 13px; font-weight: 700; width: 26px; flex-shrink: 0; }
+    .top-rev   { color: var(--green);      font-size: 15px; font-weight: 800; white-space: nowrap; }
+    .rev-blue  { color: var(--blue-dark);  font-size: 15px; font-weight: 800; white-space: nowrap; }
+    .rev-red   { color: #f87171;           font-size: 15px; font-weight: 800; white-space: nowrap; }
+    .rev-orange{ color: #fb923c;           font-size: 15px; font-weight: 800; white-space: nowrap; }
+    /* ── Period selector ────────────────────────────────────────── */
+    .period-selector { display: flex; gap: 3px; background: rgba(255,255,255,0.08); border-radius: 8px; padding: 3px; }
+    .period-btn {
+      background: transparent;
+      color: rgba(255,255,255,0.60);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      letter-spacing: 0.04em;
+      font-family: inherit;
+    }
+    .period-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .period-btn.active { background: rgba(59,130,246,0.70); color: #fff; }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .legend-dot  { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .legend-rect { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    .legend-line { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Chart wrapper ────────────────────────────────────────────────────── */
+    .chart-wrapper { height: 320px; position: relative; }
+
+    /* ── Bottom row ────────────────────────────────────────────────────── */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap);
+
+    }
+
+    /* ── Orders table ────────────────────────────────────────────────────── */
+    .table-wrapper { flex: 1; min-height: 0; overflow: hidden; }
+    .orders-table { width: 100%; height: 100%; border-collapse: collapse; }
+    .orders-table tbody tr { border-bottom: 1px solid var(--border); }
+    .orders-table tbody tr:last-child { border-bottom: none; }
+    .orders-table tbody tr:hover { background: var(--blue-light); }
+    .orders-table td { vertical-align: middle; padding: 0; }
+    .order-id    { color: var(--muted); font-size: 14px; width: 70px; font-weight: 600; }
+    .order-name  { font-weight: 600; font-size: 17px; color: var(--text); }
+    .order-total {
+      color: var(--blue-dark);
+      font-weight: 800;
+      font-size: 20px;
+      text-align: right;
+      padding-right: 16px;
+      white-space: nowrap;
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-paid       { background: rgba(52,211,153,0.18); color: #34d399; }
+    .badge-shipped    { background: rgba(34,211,238,0.15); color: #22d3ee; }
+    .badge-processing { background: rgba(251,146,60,0.18); color: #fb923c; }
+    .badge-pending    { background: rgba(148,163,184,0.15); color: #94a3b8; }
+    .badge-low        { background: rgba(251,146,60,0.18); color: #fb923c; }
+    .badge-out        { background: rgba(248,113,113,0.18); color: #f87171; }
+    .badge-ok         { background: rgba(52,211,153,0.18); color: #34d399; }
+
+    /* ── Stock list ──────────────────────────────────────────────────────── */
+    .stock-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+    }
+    .stock-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 8px;
+    }
+    .stock-item:last-child { border-bottom: none; }
+    .stock-item:hover { background: var(--blue-light); border-radius: 6px; }
+    .stock-name { flex: 1; font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .stock-name small { display: block; margin-top: 3px; }
+    .stock-qty  {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--blue-dark);
+      min-width: 40px;
+      text-align: right;
+      margin-right: 12px;
+    }
+
+
+    .nav-btn {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.2s;
+      letter-spacing: 0.03em;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.28); }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    /* ── Tablet (601–960px) ─────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      :root { --pad: 14px; --gap: 12px; }
+      .kpi-grid                   { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid, .bottom-grid  { grid-template-columns: 1fr; }
+    }
+
+    /* ── Mobile (≤600px) ────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      :root { --pad: 14px; --gap: 12px; }
+
+      /* Full-height scroll — disable fixed layout, let page flow */
+      html, body { height: auto; overflow: auto; }
+      body { display: block; }
+
+      /* Header: two rows — logo/title + controls */
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px var(--pad);
+      }
+      .header-logo-wrap { gap: 12px; }
+      .header-logo      { height: 34px; }
+      .header-divider   { height: 24px; }
+      .header h1        { font-size: 18px; letter-spacing: 0.03em; }
+      .header-sub       { font-size: 10px; }
+      .header-right     { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+      .updated-at       { font-size: 15px; }
+      .badge-ecwid      { display: none; }
+
+      /* Main: natural document flow with scroll */
+      .main {
+        height: auto;
+        overflow: visible;
+        padding: var(--pad);
+        gap: var(--gap);
+      }
+
+      /* KPIs: 2 columns, full-size numbers */
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .kpi-card   { padding: 18px 16px; }
+      .kpi-label  { font-size: 12px; }
+      .kpi-value  { font-size: 44px; }
+      .kpi-change { font-size: 13px; }
+
+      /* Charts: single column, tall enough to be useful */
+      .charts-grid, .bottom-grid { grid-template-columns: 1fr; }
+      .card-body  { padding: 14px; }
+      .card-title { font-size: 14px; }
+      .card-period-badge { font-size: 12px; }
+
+      /* Give chart canvas a decent fixed height on mobile */
+      .chart-wrapper { height: 260px; min-height: 260px; }
+      .chart-wrapper canvas { max-width: 100%; }
+
+      /* Period selector */
+      .period-btn { padding: 5px 14px; font-size: 13px; }
+
+      /* Nav */
+      .nav-btn { font-size: 13px; padding: 6px 14px; }
+
+      /* Orders table — larger, more readable */
+      .orders-table td  { padding: 10px 4px; }
+      .order-id         { width: 56px; font-size: 13px; }
+      .order-name       { font-size: 16px; }
+      .order-total      { font-size: 18px; padding-right: 10px; }
+      .badge            { font-size: 13px; padding: 4px 12px; }
+
+      /* Top products */
+      .rank-num { font-size: 14px; }
+      .top-rev  { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo-wrap">
+    <img src="https://outdoorpatiosupplies.com/wp-content/uploads/2026/01/outdoorpatiosupplies-logo.png.webp"
+         alt="Outdoor Patio Supplies" class="header-logo"
+         onerror="this.style.display='none'" />
+    <div class="header-divider"></div>
+    <div class="header-left">
+      <h1>Sales &amp; Inventory Dashboard</h1>
+      <span class="header-sub">Overview &mdash; Last 30 Days</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="pulse-wrap">
+      <div class="pulse-dot"></div>
+      <span class="updated-at" id="updatedAt"></span>
+    </div>
+    <div class="period-selector">
+      <button class="period-btn" data-days="7">7d</button>
+      <button class="period-btn active" data-days="30">30d</button>
+      <button class="period-btn" data-days="90">90d</button>
+    </div>
+    <a href="/telemetry.html" class="nav-btn">&#128308;&nbsp;Live Telemetry</a>
+    <span class="badge-ecwid">Ecwid API</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card kv-green">
+      <div class="kpi-label">Total revenue</div>
+      <div class="kpi-value" id="kpiRevenue">—</div>
+      <div class="kpi-change neutral" id="kpiRevenueChange">Loading…</div>
+    </div>
+    <div class="kpi-card kv-blue">
+      <div class="kpi-label">Orders</div>
+      <div class="kpi-value" id="kpiOrders">—</div>
+      <div class="kpi-change neutral" id="kpiOrdersChange">Loading…</div>
+    </div>
+    <div class="kpi-card kv-orange">
+      <div class="kpi-label">Avg. order value</div>
+      <div class="kpi-value" id="kpiAvg">—</div>
+      <div class="kpi-change neutral" id="kpiAvgChange">Loading…</div>
+    </div>
+    <div class="kpi-card kv-red">
+      <div class="kpi-label">Low stock items</div>
+      <div class="kpi-value" id="kpiLowStock">—</div>
+      <div class="kpi-change neutral" id="kpiStockStatus">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-header ch-blue">
+        <span class="card-title">Revenue</span>
+        <span class="card-period-badge" id="revPeriodBadge">Last 30 days</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-rect" style="background:#3b82f6"></div>Revenue
+          </div>
+          <div class="legend-item">
+            <div class="legend-line" style="background:#22c55e"></div>Orders
+          </div>
+          <div class="legend-item">
+            <div class="legend-line" style="background:#fb923c;border-top:2px dashed #fb923c;height:0;margin-top:7px"></div>Avg Order
+          </div>
+        </div>
+        <div class="chart-wrapper"><canvas id="revenueChart"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header ch-purple">
+        <span class="card-title">Orders by status</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Paid</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div>Processing</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#14b8a6"></div>Shipped</div>
+        </div>
+        <div class="chart-wrapper"><canvas id="statusChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom row: 4 cards in 2x2 grid -->
+  <div class="bottom-grid">
+
+    <!-- Recent Orders -->
+    <div class="card">
+      <div class="card-header ch-blue">
+        <span class="card-title">Recent orders</span>
+      </div>
+      <div class="card-body">
+        <ul class="stock-list" id="recentOrdersList">
+          <li style="color:var(--muted);padding:18px 0">Loading…</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Top Products -->
+    <div class="card">
+      <div class="card-header ch-green">
+        <span class="card-title">Top products</span>
+      </div>
+      <div class="card-body">
+        <ul class="stock-list" id="topProductsList">
+          <li style="color:var(--muted);padding:18px 0">Loading…</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Abandoned Orders -->
+    <div class="card">
+      <div class="card-header ch-red">
+        <span class="card-title">📧 Pedidos abandonados</span>
+        <span class="card-period-badge">ltimos 30 dias</span>
+      </div>
+      <div class="card-body">
+        <ul class="stock-list" id="abandonedOrdersList">
+          <li style="color:var(--muted);padding:18px 0">Loading…</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Processing Orders -->
+    <div class="card">
+      <div class="card-header ch-orange">
+        <span class="card-title">📦 Em processamento</span>
+        <span class="card-period-badge">Preparar hoje</span>
+      </div>
+      <div class="card-body">
+        <ul class="stock-list" id="processingOrdersList">
+          <li style="color:var(--muted);padding:18px 0">Loading…</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
