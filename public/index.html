@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Outdoor Patio Supplies — Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
@@ -512,17 +513,6 @@
         <span class="card-period-badge" id="revPeriodBadge">Last 30 days</span>
       </div>
       <div class="card-body">
-        <div class="chart-legend">
-          <div class="legend-item">
-            <div class="legend-rect" style="background:#3b82f6"></div>Revenue
-          </div>
-          <div class="legend-item">
-            <div class="legend-line" style="background:#22c55e"></div>Orders
-          </div>
-          <div class="legend-item">
-            <div class="legend-line" style="background:#fb923c;border-top:2px dashed #fb923c;height:0;margin-top:7px"></div>Avg Order
-          </div>
-        </div>
         <div class="chart-wrapper"><canvas id="revenueChart"></canvas></div>
       </div>
     </div>
@@ -531,11 +521,6 @@
         <span class="card-title">Orders by status</span>
       </div>
       <div class="card-body">
-        <div class="chart-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Paid</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div>Processing</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#14b8a6"></div>Shipped</div>
-        </div>
         <div class="chart-wrapper"><canvas id="statusChart"></canvas></div>
       </div>
     </div>

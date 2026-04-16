@@ -1,5 +1,10 @@
 'use strict';
 
+// Register datalabels plugin explicitly (CDN auto-register is unreliable with Chart.js 4)
+if (typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+}
+
 let revenueChart = null;
 let statusChart  = null;
 let currentDays  = 30;
@@ -146,27 +151,28 @@ function renderRevenueChart(data) {
       plugins: {
         legend: {
           display: true,
-          labels: { color: '#94a3b8', font: { size: 36 }, boxWidth: 14, padding: 20 },
+          labels: { color: '#94a3b8', font: { size: 26 }, boxWidth: 14, padding: 20 },
         },
+        datalabels: { display: false },
       },
       scales: {
         x: {
           grid:  { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#94a3b8', font: { size: 36 } },
+          ticks: { color: '#94a3b8', font: { size: 26 } },
         },
         yRev: {
           position: 'left',
           grid:  { color: 'rgba(255,255,255,0.05)' },
           ticks: {
             color: '#94a3b8',
-            font:  { size: 36 },
+            font:  { size: 26 },
             callback: v => `$${(v / 1000).toFixed(1)}k`,
           },
         },
         yOrd: {
           position: 'right',
           grid:  { drawOnChartArea: false },
-          ticks: { color: '#94a3b8', font: { size: 36 }, precision: 0 },
+          ticks: { color: '#94a3b8', font: { size: 26 }, precision: 0 },
         },
       },
     },
@@ -207,11 +213,23 @@ function renderStatusChart(statusData) {
       plugins: {
         legend: {
           display: true,
-          labels: { color: '#94a3b8', font: { size: 36 }, boxWidth: 14, padding: 20 },
+          labels: { color: '#94a3b8', font: { size: 26 }, boxWidth: 14, padding: 20 },
         },
         tooltip: {
           callbacks: {
             label: ctx => ` ${ctx.label}: ${ctx.parsed} orders`,
+          },
+        },
+        datalabels: {
+          display: true,
+          color: '#fff',
+          anchor: 'center',
+          align: 'center',
+          textAlign: 'center',
+          font: { size: 22, weight: 'bold' },
+          formatter: (value, ctx) => {
+            const label = ctx.chart.data.labels[ctx.dataIndex];
+            return `${label}\n${value}`;
           },
         },
       },
