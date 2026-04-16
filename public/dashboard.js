@@ -143,25 +143,30 @@ function renderRevenueChart(data) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#94a3b8', font: { size: 36 }, boxWidth: 14, padding: 20 },
+        },
+      },
       scales: {
         x: {
           grid:  { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#94a3b8', font: { size: 18 } },
+          ticks: { color: '#94a3b8', font: { size: 36 } },
         },
         yRev: {
           position: 'left',
           grid:  { color: 'rgba(255,255,255,0.05)' },
           ticks: {
             color: '#94a3b8',
-            font:  { size: 18 },
+            font:  { size: 36 },
             callback: v => `$${(v / 1000).toFixed(1)}k`,
           },
         },
         yOrd: {
           position: 'right',
           grid:  { drawOnChartArea: false },
-          ticks: { color: '#94a3b8', font: { size: 18 }, precision: 0 },
+          ticks: { color: '#94a3b8', font: { size: 36 }, precision: 0 },
         },
       },
     },
@@ -200,7 +205,10 @@ function renderStatusChart(statusData) {
       maintainAspectRatio: false,
       cutout: '68%',
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          labels: { color: '#94a3b8', font: { size: 36 }, boxWidth: 14, padding: 20 },
+        },
         tooltip: {
           callbacks: {
             label: ctx => ` ${ctx.label}: ${ctx.parsed} orders`,
@@ -220,8 +228,7 @@ function renderOrders(orders) {
   }
   list.innerHTML = orders.map(o => `
     <li class="stock-item">
-      <span class="rank-num">#${esc(o.id)}</span>
-      <span class="stock-name">${esc(o.description)}</span>
+      <span class="stock-name">${esc(o.description)}<small>#${esc(o.id)}</small></span>
       <span class="badge ${badgeClass(o.status)}">${esc(o.status)}</span>
       <span class="rev-blue">${fmt(o.total)}</span>
     </li>
@@ -292,6 +299,7 @@ async function loadData(days = currentDays) {
     renderTopProducts(data.topProducts);
     renderAbandonedOrders(data.abandonedOrders);
     renderProcessingOrders(data.processingOrders);
+    _lastDashData = data;
 
     // Update period badge in revenue card header
     const badge = document.getElementById('revPeriodBadge');
@@ -318,3 +326,138 @@ document.querySelectorAll('.period-btn').forEach(btn => {
 // Initial load + auto-refresh every 5 minutes
 loadData();
 setInterval(() => loadData(currentDays), 5 * 60 * 1000);
+
+// ---------------------------------------------------------------------------
+// Voice summary
+// ---------------------------------------------------------------------------
+
+let _lastDashData = null;
+
+function _getBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  return (
+    voices.find(v => /en[-_]US/i.test(v.lang) && /samantha|alex|google us english/i.test(v.name)) ||
+    voices.find(v => /en[-_]US/i.test(v.lang) && !v.localService) ||
+    voices.find(v => /en[-_]US/i.test(v.lang)) ||
+    voices.find(v => /^en/i.test(v.lang)) ||
+    null
+  );
+}
+
+function _updateVoiceBtn(speaking) {
+  const btn = document.getElementById('voiceBtn');
+  if (!btn) return;
+  btn.innerHTML = speaking ? '&#9209;&nbsp;Stop' : '&#128266;&nbsp;Listen';
+  btn.classList.toggle('voice-btn--speaking', speaking);
+}
+
+function buildDashSummaryText() {
+  const hour     = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const time     = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const days     = currentDays;
+
+  const parts = [`${greeting}. Here's your sales dashboard summary as of ${time}, for the last ${days} days.`];
+
+  if (_lastDashData) {
+    const k = _lastDashData.kpis;
+
+    // Revenue
+    parts.push(
+      `Total revenue: ${fmt(k.totalRevenue)}.` +
+      (k.revenueChange != null
+        ? ` That's ${k.revenueChange >= 0 ? 'up' : 'down'} ${Math.abs(k.revenueChange)} percent vs the previous period.`
+        : '')
+    );
+
+    // Orders
+    parts.push(
+      `Total orders: ${k.totalOrders}.` +
+      (k.newToday > 0 ? ` ${k.newToday} new order${k.newToday !== 1 ? 's' : ''} placed today.` : ' No new orders today yet.')
+    );
+
+    // Avg order
+    parts.push(
+      `Average order value: ${fmt(k.avgOrderValue)}.` +
+      (k.avgChange != null
+        ? ` ${k.avgChange >= 0 ? 'Up' : 'Down'} ${Math.abs(k.avgChange)} percent vs the previous period.`
+        : '')
+    );
+
+    // Stock
+    if (k.lowStockCount > 0) {
+      parts.push(`Attention: ${k.lowStockCount} product${k.lowStockCount !== 1 ? 's are' : ' is'} low on stock.`);
+    } else {
+      parts.push('All products are well stocked.');
+    }
+
+    // Orders by status
+    const s = _lastDashData.ordersByStatus;
+    if (s) {
+      const statusParts = [];
+      if (s.Paid)       statusParts.push(`${s.Paid} paid`);
+      if (s.Processing) statusParts.push(`${s.Processing} in processing`);
+      if (s.Shipped)    statusParts.push(`${s.Shipped} shipped`);
+      if (s.Other)      statusParts.push(`${s.Other} other`);
+      if (statusParts.length) parts.push(`Orders by status: ${statusParts.join(', ')}.`);
+    }
+
+    // Top product
+    const tp = _lastDashData.topProducts;
+    if (tp && tp.length > 0) {
+      parts.push(`Top product: "${tp[0].name}" with ${tp[0].quantity} unit${tp[0].quantity !== 1 ? 's' : ''} sold and ${fmt(tp[0].revenue)} in revenue.`);
+    }
+
+    // Abandoned orders
+    const ab = _lastDashData.abandonedOrders;
+    if (ab && ab.length > 0) {
+      parts.push(`${ab.length} abandoned order${ab.length !== 1 ? 's' : ''} in the last 30 days with recovery potential.`);
+    }
+
+    // Processing
+    const pr = _lastDashData.processingOrders;
+    if (pr && pr.length > 0) {
+      parts.push(`${pr.length} order${pr.length !== 1 ? 's are' : ' is'} currently in processing and need${pr.length === 1 ? 's' : ''} to be prepared.`);
+    }
+  } else {
+    parts.push('Dashboard data has not loaded yet. Please wait a moment and try again.');
+  }
+
+  parts.push('End of summary.');
+  return parts.join(' ');
+}
+
+function speakSummary() {
+  if (!('speechSynthesis' in window)) {
+    alert('Text-to-speech is not supported in this browser.');
+    return;
+  }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    _updateVoiceBtn(false);
+    return;
+  }
+
+  const text = buildDashSummaryText();
+  const utt  = new SpeechSynthesisUtterance(text);
+  utt.rate   = 0.95;
+  utt.pitch  = 1.05;
+  utt.volume = 1.0;
+
+  const trySpeak = () => {
+    const voice = _getBestVoice();
+    if (voice) utt.voice = voice;
+    utt.onstart = () => _updateVoiceBtn(true);
+    utt.onend   = () => _updateVoiceBtn(false);
+    utt.onerror = () => _updateVoiceBtn(false);
+    window.speechSynthesis.speak(utt);
+  };
+
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+  } else {
+    trySpeak();
+  }
+}
+
+document.getElementById('voiceBtn').addEventListener('click', speakSummary);
