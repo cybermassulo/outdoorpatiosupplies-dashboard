@@ -88,6 +88,7 @@ function displayStatus(order) {
   const fs = order.fulfillmentStatus;
   const ps = order.paymentStatus;
   if (fs === 'SHIPPED' || fs === 'DELIVERED') return 'Shipped';
+  if (PAID_STATUSES.has(ps))                  return 'Not Shipped';
   if (fs === 'PROCESSING')                    return 'Processing';
   if (ps === 'PAID')                          return 'Paid';
   return 'Pending';
@@ -130,7 +131,7 @@ function buildRevenueChart(orders, periodDays, now) {
   return points;
 }
 
-function buildTopProducts(orders, n = 5) {
+function buildTopProducts(orders, n = Infinity) {
   const map = {};
   for (const order of orders) {
     if (!PAID_STATUSES.has(order.paymentStatus)) continue;
@@ -168,7 +169,17 @@ function buildPeriodSlice(allOrders, periodDays, now) {
 
   const newToday = currentOrders.filter(o => o.createTimestamp >= todaySecStart).length;
 
-  const ordersByStatus = { Paid: 0, Processing: 0, Shipped: 0, Other: 0 };
+  const paidNeedsShipping = currentOrders.filter(o =>
+    PAID_STATUSES.has(o.paymentStatus) &&
+    o.fulfillmentStatus !== 'SHIPPED' &&
+    o.fulfillmentStatus !== 'DELIVERED'
+  ).length;
+
+  const notPaid = currentOrders.filter(o =>
+    !PAID_STATUSES.has(o.paymentStatus)
+  ).length;
+
+  const ordersByStatus = { 'Not Shipped': 0, Shipped: 0, Processing: 0, Paid: 0, Other: 0 };
   for (const o of currentOrders) {
     const s = displayStatus(o);
     ordersByStatus[s] = (ordersByStatus[s] ?? 0) + 1;
@@ -177,27 +188,34 @@ function buildPeriodSlice(allOrders, periodDays, now) {
 
   const recentOrders = [...currentOrders]
     .sort((a, b) => b.createTimestamp - a.createTimestamp)
-    .slice(0, 5)
     .map(o => {
       const qty  = (o.items ?? []).reduce((s, i) => s + (i.quantity ?? 0), 0);
       const name = (o.items ?? [])[0]?.name ?? 'Order';
       return {
-        id:          o.orderNumber,
-        description: qty > 1 ? `${name} (${qty})` : name,
-        total:       o.total ?? 0,
-        status:      displayStatus(o),
+        id:               o.orderNumber,
+        description:      qty > 1 ? `${name} (${qty})` : name,
+        total:            o.total ?? 0,
+        status:           displayStatus(o),
+        customer:         o.shippingPerson?.name || o.billingPerson?.name || o.email || 'Unknown',
+        email:            o.email ?? '',
+        paymentStatus:    o.paymentStatus ?? '',
+        fulfillmentStatus: o.fulfillmentStatus ?? '',
+        createdAt:        o.createTimestamp,
+        items:            (o.items ?? []).map(i => ({ name: i.name ?? 'Item', qty: i.quantity ?? 1, price: i.price ?? 0 })),
       };
     });
 
   return {
     kpis: {
-      totalRevenue:  Math.round(currRevenue * 100) / 100,
-      totalOrders:   currentOrders.length,
-      avgOrderValue: Math.round(currAvg    * 100) / 100,
+      totalRevenue:       Math.round(currRevenue * 100) / 100,
+      totalOrders:        currentOrders.length,
+      avgOrderValue:      Math.round(currAvg    * 100) / 100,
       revenueChange,
       avgChange,
       newToday,
       periodDays,
+      paidNeedsShipping,
+      notPaid,
     },
     revenueChart: buildRevenueChart(currentOrders, periodDays, now),
     ordersByStatus,
@@ -254,18 +272,21 @@ async function buildCache() {
       o.createTimestamp >= Math.floor((now - 30 * 86_400_000) / 1000)
     )
     .sort((a, b) => b.createTimestamp - a.createTimestamp)
-    .slice(0, 5)
     .map(o => {
       const items    = o.items ?? [];
       const qty      = items.reduce((s, i) => s + (i.quantity ?? 0), 0);
       const product  = items[0]?.name ?? 'Order';
       const customer = o.shippingPerson?.name || o.billingPerson?.name || o.email || 'Unknown';
       return {
-        id:       o.orderNumber,
+        id:               o.orderNumber,
         customer,
-        email:    o.email ?? '',
-        product:  qty > 1 ? `${product} (+${qty - 1})` : product,
-        total:    o.total ?? 0,
+        email:            o.email ?? '',
+        product:          qty > 1 ? `${product} (+${qty - 1})` : product,
+        total:            o.total ?? 0,
+        paymentStatus:    o.paymentStatus ?? '',
+        fulfillmentStatus: o.fulfillmentStatus ?? '',
+        createdAt:        o.createTimestamp,
+        items:            (o.items ?? []).map(i => ({ name: i.name ?? 'Item', qty: i.quantity ?? 1, price: i.price ?? 0 })),
       };
     });
 
@@ -273,23 +294,28 @@ async function buildCache() {
   const processingOrders = allOrders
     .filter(o => o.fulfillmentStatus === 'PROCESSING')
     .sort((a, b) => b.createTimestamp - a.createTimestamp)
-    .slice(0, 5)
     .map(o => {
       const items    = o.items ?? [];
       const qty      = items.reduce((s, i) => s + (i.quantity ?? 0), 0);
       const product  = items[0]?.name ?? 'Order';
       const customer = o.shippingPerson?.name || o.billingPerson?.name || o.email || 'Unknown';
       return {
-        id:      o.orderNumber,
+        id:               o.orderNumber,
         customer,
-        product: qty > 1 ? `${product} (+${qty - 1})` : product,
-        total:   o.total ?? 0,
+        email:            o.email ?? '',
+        product:          qty > 1 ? `${product} (+${qty - 1})` : product,
+        total:            o.total ?? 0,
+        paymentStatus:    o.paymentStatus ?? '',
+        fulfillmentStatus: o.fulfillmentStatus ?? '',
+        createdAt:        o.createTimestamp,
+        items:            (o.items ?? []).map(i => ({ name: i.name ?? 'Item', qty: i.quantity ?? 1, price: i.price ?? 0 })),
       };
     });
   const payload = {
     updatedAt:        new Date().toISOString(),
     d7:               buildPeriodSlice(allOrders,  7, now),
     d30,
+    d60:              buildPeriodSlice(allOrders, 60, now),
     d90:              buildPeriodSlice(allOrders, 90, now),
     stockAlerts:      stockAlerts.slice(0, 10),
     abandonedOrders,
@@ -320,7 +346,7 @@ app.get('/api/data', (req, res) => {
   }
   try {
     const raw   = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
-    const days  = ['7', '90'].includes(req.query.days) ? req.query.days : '30';
+    const days  = ['7', '60', '90'].includes(req.query.days) ? req.query.days : '30';
     const slice = raw[`d${days}`] ?? raw.d30 ?? {};
     res.json({
       updatedAt:        raw.updatedAt,
@@ -328,7 +354,7 @@ app.get('/api/data', (req, res) => {
       abandonedOrders:  raw.abandonedOrders  ?? [],
       processingOrders: raw.processingOrders ?? [],
       ...slice,
-      kpis: { ...slice.kpis, lowStockCount: raw.stockAlerts?.length ?? 0 },
+      kpis: { ...slice.kpis, lowStockCount: raw.stockAlerts?.length ?? 0, abandonedCount: raw.abandonedOrders?.length ?? 0 },
     });
   } catch {
     res.status(500).json({ error: 'Failed to read cache.' });

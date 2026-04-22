@@ -9,6 +9,9 @@ let revenueChart = null;
 let statusChart  = null;
 let currentDays  = 30;
 
+// Order lookup map — keyed by order id, populated on each data load
+const _ordersById = {};
+
 // ---------------------------------------------------------------------------
 // Formatters
 // ---------------------------------------------------------------------------
@@ -84,15 +87,37 @@ function renderKPIs(kpis) {
     avgEl.textContent = 'No prior-period data';
   }
 
-  // Low stock
-  document.getElementById('kpiLowStock').textContent = kpis.lowStockCount ?? 0;
-  const stockEl = document.getElementById('kpiStockStatus');
-  if (kpis.lowStockCount > 0) {
-    stockEl.className = 'kpi-change warning';
-    stockEl.textContent = 'Action needed';
+  // Paid – needs shipping
+  document.getElementById('kpiNeedsShipping').textContent = kpis.paidNeedsShipping ?? 0;
+  const needsEl = document.getElementById('kpiNeedsShippingStatus');
+  if ((kpis.paidNeedsShipping ?? 0) > 0) {
+    needsEl.className = 'kpi-change warning';
+    needsEl.textContent = 'Awaiting dispatch';
   } else {
-    stockEl.className = 'kpi-change positive';
-    stockEl.textContent = 'All stocked';
+    needsEl.className = 'kpi-change positive';
+    needsEl.textContent = 'All shipped';
+  }
+
+  // Not paid
+  document.getElementById('kpiNotPaid').textContent = kpis.notPaid ?? 0;
+  const notPaidEl = document.getElementById('kpiNotPaidStatus');
+  if ((kpis.notPaid ?? 0) > 0) {
+    notPaidEl.className = 'kpi-change negative';
+    notPaidEl.textContent = 'Pending payment';
+  } else {
+    notPaidEl.className = 'kpi-change positive';
+    notPaidEl.textContent = 'All collected';
+  }
+
+  // Abandoned carts
+  document.getElementById('kpiAbandoned').textContent = kpis.abandonedCount ?? 0;
+  const abandonedEl = document.getElementById('kpiAbandonedStatus');
+  if ((kpis.abandonedCount ?? 0) > 0) {
+    abandonedEl.className = 'kpi-change warning';
+    abandonedEl.textContent = 'Recovery opportunity';
+  } else {
+    abandonedEl.className = 'kpi-change positive';
+    abandonedEl.textContent = 'No abandoned carts';
   }
 }
 
@@ -181,11 +206,12 @@ function renderRevenueChart(data) {
 
 function renderStatusChart(statusData) {
   const COLOR_MAP = {
-    Paid:       '#3b82f6',
-    Processing: '#1d4ed8',
-    Shipped:    '#14b8a6',
-    Other:      '#475569',
-    Pending:    '#475569',
+    'Not Shipped': '#f59e0b',
+    Paid:          '#3b82f6',
+    Processing:    '#1d4ed8',
+    Shipped:       '#14b8a6',
+    Other:         '#475569',
+    Pending:       '#475569',
   };
 
   const labels = Object.keys(statusData).filter(k => statusData[k] > 0);
@@ -244,60 +270,79 @@ function renderOrders(orders) {
     list.innerHTML = '<li style="color:var(--muted);padding:12px 0">No orders found.</li>';
     return;
   }
-  list.innerHTML = orders.map(o => `
-    <li class="stock-item">
+  list.innerHTML = orders.map(o => {
+    _ordersById[o.id] = o;
+    return `
+    <li class="stock-item od-clickable" data-order-id="${esc(o.id)}">
       <span class="stock-name">${esc(o.description)}<small>#${esc(o.id)}</small></span>
       <span class="badge ${badgeClass(o.status)}">${esc(o.status)}</span>
       <span class="rev-blue">${fmt(o.total)}</span>
-    </li>
-  `).join('');
+    </li>`;
+  }).join('');
+  _bindOrderClicks(list);
 }
 
 function renderAbandonedOrders(orders) {
   const list = document.getElementById('abandonedOrdersList');
   if (!list) return;
   if (!orders?.length) {
-    list.innerHTML = '<li style="color:var(--muted);padding:12px 0">✅ Nenhum pedido abandonado — timo!</li>';
+    list.innerHTML = '<li style="color:var(--muted);padding:12px 0">✅ No abandoned orders — great!</li>';
     return;
   }
-  list.innerHTML = orders.map(o => `
-    <li class="stock-item">
+  list.innerHTML = orders.map(o => {
+    _ordersById[o.id] = o;
+    return `
+    <li class="stock-item od-clickable" data-order-id="${esc(o.id)}">
       <span class="stock-name" title="${esc(o.email)}">${esc(o.customer)}<small>#${esc(o.id)} &middot; ${esc(o.product)}</small></span>
       <span class="rev-red">${fmt(o.total)}</span>
-    </li>
-  `).join('');
+    </li>`;
+  }).join('');
+  _bindOrderClicks(list);
 }
 
 function renderProcessingOrders(orders) {
   const list = document.getElementById('processingOrdersList');
   if (!list) return;
   if (!orders?.length) {
-    list.innerHTML = '<li style="color:var(--muted);padding:12px 0">✅ Nenhum pedido em processamento.</li>';
+    list.innerHTML = '<li style="color:var(--muted);padding:12px 0">✅ No orders in processing.</li>';
     return;
   }
-  list.innerHTML = orders.map(o => `
-    <li class="stock-item">
+  list.innerHTML = orders.map(o => {
+    _ordersById[o.id] = o;
+    return `
+    <li class="stock-item od-clickable" data-order-id="${esc(o.id)}">
       <span class="stock-name">${esc(o.customer)}<small>#${esc(o.id)} &middot; ${esc(o.product)}</small></span>
       <span class="rev-orange">${fmt(o.total)}</span>
-    </li>
-  `).join('');
+    </li>`;
+  }).join('');
+  _bindOrderClicks(list);
 }
 
+let _topProductsArr = [];
+
 function renderTopProducts(products) {
+  _topProductsArr = products || [];
   const list = document.getElementById('topProductsList');
   if (!list) return;
-  if (!products?.length) {
+  if (!_topProductsArr.length) {
     list.innerHTML = '<li style="color:var(--muted);padding:12px 0">No sales data for this period</li>';
     return;
   }
-  list.innerHTML = products.map((p, i) => `
-    <li class="stock-item">
+  list.innerHTML = _topProductsArr.map((p, i) => `
+    <li class="stock-item od-clickable" data-product-idx="${i}">
       <span class="rank-num">#${i + 1}</span>
       <span class="stock-name">${esc(p.name)}</span>
       <span class="stock-qty">${p.quantity}</span>
       <span class="top-rev">${fmt(p.revenue)}</span>
     </li>
   `).join('');
+  list.querySelectorAll('[data-product-idx]').forEach(li => {
+    li.addEventListener('click', () => {
+      const idx = parseInt(li.dataset.productIdx, 10);
+      const p = _topProductsArr[idx];
+      if (p) openProductModal(p, idx + 1);
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +376,124 @@ async function loadData(days = currentDays) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Order Detail Modal
+// ---------------------------------------------------------------------------
+
+function _statusBadgeClass(ps, fs) {
+  if (fs === 'SHIPPED' || fs === 'DELIVERED') return 'od-status-shipped';
+  if (ps === 'PAID' || ps === 'PARTIALLY_REFUNDED') return 'od-status-notshipped';
+  if (fs === 'PROCESSING') return 'od-status-processing';
+  if (ps === 'AWAITING_PAYMENT') return 'od-status-unpaid';
+  return 'od-status-default';
+}
+
+function _paymentLabel(ps) {
+  const map = {
+    PAID: 'Paid', PARTIALLY_REFUNDED: 'Partially Refunded',
+    AWAITING_PAYMENT: 'Awaiting Payment', CANCELLED: 'Cancelled',
+  };
+  return map[ps] || ps || 'Unknown';
+}
+
+function _fulfillmentLabel(fs) {
+  const map = {
+    AWAITING_PROCESSING: 'Awaiting Processing', PROCESSING: 'Processing',
+    SHIPPED: 'Shipped', DELIVERED: 'Delivered', WILL_NOT_DELIVER: 'Will Not Deliver',
+  };
+  return map[fs] || fs || 'Awaiting Processing';
+}
+
+function openProductModal(product, rank) {
+  const overlay = document.getElementById('orderDetailOverlay');
+  if (!overlay) return;
+  document.getElementById('odBadge').textContent    = 'Product Details';
+  document.getElementById('odOrderNum').textContent = `#${rank}`;
+  document.getElementById('odDate').textContent     = `${currentDays}d period`;
+  document.getElementById('odCustomer').textContent = product.name;
+  document.getElementById('odEmail').textContent    = '';
+  document.getElementById('odStatuses').innerHTML   = '<span class="od-status-badge od-status-shipped">Top Product</span>';
+  document.getElementById('odItems').innerHTML      = `
+    <li class="od-item-row">
+      <span class="od-item-name">Units sold</span>
+      <span class="od-item-price">${product.quantity}</span>
+    </li>`;
+  document.getElementById('odTotal').textContent = fmt(product.revenue);
+  overlay.classList.add('visible');
+}
+
+function openOrderModal(order) {
+  const overlay = document.getElementById('orderDetailOverlay');
+  if (!overlay) return;
+
+  document.getElementById('odOrderNum').textContent   = `#${order.id}`;
+  document.getElementById('odCustomer').textContent   = order.customer || order.description || 'Unknown';
+  document.getElementById('odEmail').textContent      = order.email || '';
+
+  // Date
+  const dateEl = document.getElementById('odDate');
+  if (order.createdAt) {
+    const d = new Date(order.createdAt * 1000);
+    dateEl.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } else {
+    dateEl.textContent = '';
+  }
+
+  // Status badges
+  const statusesEl = document.getElementById('odStatuses');
+  const psClass = order.paymentStatus === 'PAID' || order.paymentStatus === 'PARTIALLY_REFUNDED'
+    ? 'od-status-paid' : order.paymentStatus === 'AWAITING_PAYMENT' ? 'od-status-unpaid' : 'od-status-default';
+  const fsClass = order.fulfillmentStatus === 'SHIPPED' || order.fulfillmentStatus === 'DELIVERED'
+    ? 'od-status-shipped' : order.fulfillmentStatus === 'PROCESSING' ? 'od-status-processing' : 'od-status-default';
+  statusesEl.innerHTML = `
+    <span class="od-status-badge ${psClass}">${_paymentLabel(order.paymentStatus)}</span>
+    <span class="od-status-badge ${fsClass}">${_fulfillmentLabel(order.fulfillmentStatus)}</span>`;
+
+  // Items
+  const itemsEl = document.getElementById('odItems');
+  if (order.items?.length) {
+    itemsEl.innerHTML = order.items.map(i => `
+      <li class="od-item-row">
+        <span class="od-item-qty">x${i.qty}</span>
+        <span class="od-item-name">${esc(i.name)}</span>
+        <span class="od-item-price">${fmt(i.price * i.qty)}</span>
+      </li>`).join('');
+  } else {
+    const desc = order.description || order.product || '';
+    itemsEl.innerHTML = desc
+      ? `<li class="od-item-row"><span class="od-item-name">${esc(desc)}</span></li>`
+      : '<li class="od-item-row" style="color:#94a3b8">No item details available</li>';
+  }
+
+  // Total
+  document.getElementById('odTotal').textContent = fmt(order.total);
+
+  overlay.classList.add('visible');
+  document.getElementById('odBadge').textContent = 'Order Details';
+}
+
+function closeOrderModal() {
+  document.getElementById('orderDetailOverlay')?.classList.remove('visible');
+}
+
+function _bindOrderClicks(list) {
+  list.querySelectorAll('[data-order-id]').forEach(li => {
+    li.addEventListener('click', () => {
+      const order = _ordersById[li.dataset.orderId];
+      if (order) openOrderModal(order);
+    });
+  });
+}
+
+// Modal close bindings
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('odClose')?.addEventListener('click', closeOrderModal);
+  document.getElementById('orderDetailOverlay')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeOrderModal();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Period selector
 document.querySelectorAll('.period-btn').forEach(btn => {
   btn.addEventListener('click', () => {

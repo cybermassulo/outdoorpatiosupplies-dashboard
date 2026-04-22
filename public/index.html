@@ -125,7 +125,7 @@
     /* ── KPI cards ───────────────────────────────────────────────────────── */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: var(--gap);
       flex-shrink: 0;
     }
@@ -145,6 +145,8 @@
     .kpi-card.kv-blue   { border-top-color: var(--blue-mid); }
     .kpi-card.kv-orange { border-top-color: var(--orange); }
     .kpi-card.kv-red    { border-top-color: var(--red); }
+    .kpi-card.kv-amber  { border-top-color: #f59e0b; }
+    .kpi-card.kv-purple { border-top-color: #a78bfa; }
     .kpi-card::before {
       content: '';
       position: absolute;
@@ -162,7 +164,13 @@
     .kpi-change.warning  { color: var(--orange); }
     .kpi-change.neutral  { color: var(--muted); }
 
-    /* ── Chart cards ─────────────────────────────────────────────────────── */
+    /* ── Action KPI row ─────────────────────────────────────────────────── */
+    .kpi-grid-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--gap);
+      flex-shrink: 0;
+    }
     .charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -303,6 +311,15 @@
     .badge-out        { background: rgba(248,113,113,0.18); color: #f87171; }
     .badge-ok         { background: rgba(52,211,153,0.18); color: #34d399; }
 
+    /* ── Scrollable card body (hidden scrollbar) ─────────────────────────── */
+    .card-body-scroll {
+      max-height: 420px;
+      overflow-y: auto;
+      scrollbar-width: none;        /* Firefox */
+      -ms-overflow-style: none;     /* IE/Edge */
+    }
+    .card-body-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
     /* ── Stock list ──────────────────────────────────────────────────────── */
     .stock-list {
       list-style: none;
@@ -369,11 +386,193 @@
       50%       { box-shadow: 0 0 0 7px rgba(139,92,246,0);   }
     }
 
-    /* ── Responsive ──────────────────────────────────────────────────────── */
+    /* ── Order Detail Modal ───────────────────────────────────────── */
+    .od-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(4,10,22,0.78);
+      backdrop-filter: blur(6px) saturate(160%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .od-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .od-box {
+      background: #fff;
+      border: 3px solid #2563eb;
+      border-radius: 24px;
+      max-width: 820px;
+      width: 94%;
+      display: flex;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(37,99,235,0.35);
+      animation: odPop 0.38s cubic-bezier(0.34,1.56,0.64,1);
+      max-height: 90vh;
+    }
+    @keyframes odPop {
+      from { transform: scale(0.78); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .od-logo-col {
+      width: 170px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #060d1a 0%, #1e40af 60%, #2563eb 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 36px 20px;
+    }
+    .od-logo-col img {
+      width: 100%;
+      max-width: 110px;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    .od-logo-ordernum {
+      font-size: 30px;
+      font-weight: 900;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 0.04em;
+      text-align: center;
+      word-break: break-all;
+    }
+    .od-logo-date {
+      font-size: 17px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
+      text-align: center;
+    }
+    .od-content {
+      flex: 1;
+      padding: 32px 40px;
+      overflow-y: auto;
+      scrollbar-width: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-width: 0;
+    }
+    .od-content::-webkit-scrollbar { display: none; }
+    .od-badge {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 6px 22px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      align-self: flex-start;
+    }
+    .od-customer {
+      font-size: 42px;
+      font-weight: 900;
+      color: #2563eb;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .od-email {
+      font-size: 19px;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .od-statuses {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .od-status-badge {
+      display: inline-block;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .od-status-paid         { background: rgba(52,211,153,0.18); color: #16a34a; }
+    .od-status-notshipped   { background: rgba(245,158,11,0.18);  color: #b45309; }
+    .od-status-shipped      { background: rgba(34,211,238,0.18);  color: #0e7490; }
+    .od-status-processing   { background: rgba(251,146,60,0.18);  color: #c2410c; }
+    .od-status-unpaid       { background: rgba(248,113,113,0.18); color: #dc2626; }
+    .od-status-default      { background: rgba(148,163,184,0.18); color: #475569; }
+    .od-divider {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 16px 0;
+    }
+    .od-items-label {
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+    .od-items-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .od-item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 19px;
+      color: #1e293b;
+    }
+    .od-item-qty {
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 800;
+      font-size: 17px;
+      padding: 3px 12px;
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+    .od-item-name { flex: 1; font-weight: 600; color: #334155; font-size: 19px; }
+    .od-item-price { font-weight: 700; color: #2563eb; white-space: nowrap; font-size: 19px; }
+    .od-total {
+      font-size: 84px;
+      font-weight: 900;
+      color: #2563eb;
+      line-height: 1;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .od-close {
+      align-self: center;
+      background: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 20px;
+      padding: 12px 36px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #64748b;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: inherit;
+    }
+    .od-close:hover { background: #f1f5f9; color: #1e293b; }
+    .od-clickable { cursor: pointer; }
+    .od-clickable:hover { opacity: 0.85; }
     /* ── Tablet (601–960px) ─────────────────────────────────────────────── */
     @media (max-width: 960px) {
       :root { --pad: 14px; --gap: 12px; }
-      .kpi-grid                   { grid-template-columns: repeat(2, 1fr); }
+      .kpi-grid                   { grid-template-columns: repeat(3, 1fr); }
       .charts-grid, .bottom-grid  { grid-template-columns: 1fr; }
     }
 
@@ -413,9 +612,7 @@
       }
 
       /* KPIs: 2 columns, full-size numbers */
-      .kpi-grid {
-        grid-template-columns: 1fr 1fr;
-      }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
       .kpi-card   { padding: 18px 16px; }
       .kpi-label  { font-size: 12px; }
       .kpi-value  { font-size: 44px; }
@@ -471,6 +668,7 @@
     <div class="period-selector">
       <button class="period-btn" data-days="7">7d</button>
       <button class="period-btn active" data-days="30">30d</button>
+      <button class="period-btn" data-days="60">60d</button>
       <button class="period-btn" data-days="90">90d</button>
     </div>
     <a href="/telemetry.html" class="nav-btn">&#128308;&nbsp;Live Telemetry</a>
@@ -498,10 +696,20 @@
       <div class="kpi-value" id="kpiAvg">—</div>
       <div class="kpi-change neutral" id="kpiAvgChange">Loading…</div>
     </div>
+    <div class="kpi-card kv-amber">
+      <div class="kpi-label">📦 Paid – needs shipping</div>
+      <div class="kpi-value" id="kpiNeedsShipping">—</div>
+      <div class="kpi-change neutral" id="kpiNeedsShippingStatus">Loading…</div>
+    </div>
     <div class="kpi-card kv-red">
-      <div class="kpi-label">Low stock items</div>
-      <div class="kpi-value" id="kpiLowStock">—</div>
-      <div class="kpi-change neutral" id="kpiStockStatus">Loading…</div>
+      <div class="kpi-label">💳 Not paid</div>
+      <div class="kpi-value" id="kpiNotPaid">—</div>
+      <div class="kpi-change neutral" id="kpiNotPaidStatus">Loading…</div>
+    </div>
+    <div class="kpi-card kv-purple">
+      <div class="kpi-label">🛒 Abandoned carts</div>
+      <div class="kpi-value" id="kpiAbandoned">—</div>
+      <div class="kpi-change neutral" id="kpiAbandonedStatus">Loading…</div>
     </div>
   </div>
 
@@ -534,7 +742,7 @@
       <div class="card-header ch-blue">
         <span class="card-title">Recent orders</span>
       </div>
-      <div class="card-body">
+      <div class="card-body card-body-scroll">
         <ul class="stock-list" id="recentOrdersList">
           <li style="color:var(--muted);padding:18px 0">Loading…</li>
         </ul>
@@ -546,7 +754,7 @@
       <div class="card-header ch-green">
         <span class="card-title">Top products</span>
       </div>
-      <div class="card-body">
+      <div class="card-body card-body-scroll">
         <ul class="stock-list" id="topProductsList">
           <li style="color:var(--muted);padding:18px 0">Loading…</li>
         </ul>
@@ -556,10 +764,10 @@
     <!-- Abandoned Orders -->
     <div class="card">
       <div class="card-header ch-red">
-        <span class="card-title">📧 Pedidos abandonados</span>
-        <span class="card-period-badge">ltimos 30 dias</span>
+        <span class="card-title">📧 Abandoned Orders</span>
+        <span class="card-period-badge">Last 30 days</span>
       </div>
-      <div class="card-body">
+      <div class="card-body card-body-scroll">
         <ul class="stock-list" id="abandonedOrdersList">
           <li style="color:var(--muted);padding:18px 0">Loading…</li>
         </ul>
@@ -569,10 +777,10 @@
     <!-- Processing Orders -->
     <div class="card">
       <div class="card-header ch-orange">
-        <span class="card-title">📦 Em processamento</span>
-        <span class="card-period-badge">Preparar hoje</span>
+        <span class="card-title">📦 Processing</span>
+        <span class="card-period-badge">Prepare today</span>
       </div>
-      <div class="card-body">
+      <div class="card-body card-body-scroll">
         <ul class="stock-list" id="processingOrdersList">
           <li style="color:var(--muted);padding:18px 0">Loading…</li>
         </ul>
@@ -581,6 +789,30 @@
 
   </div>
 
+</div>
+
+<!-- Order Detail Modal -->
+<div id="orderDetailOverlay" class="od-overlay">
+  <div class="od-box">
+    <div class="od-logo-col">
+      <img src="https://outdoorpatiosupplies.com/wp-content/uploads/2026/01/outdoorpatiosupplies-logo.png.webp"
+           alt="logo" onerror="this.style.display='none'" />
+      <div class="od-logo-ordernum" id="odOrderNum">#—</div>
+      <div class="od-logo-date" id="odDate"></div>
+    </div>
+    <div class="od-content">
+      <span class="od-badge" id="odBadge">Order Details</span>
+      <div class="od-customer" id="odCustomer"></div>
+      <div class="od-email" id="odEmail"></div>
+      <div class="od-statuses" id="odStatuses"></div>
+      <hr class="od-divider" />
+      <div class="od-items-label">Items</div>
+      <ul class="od-items-list" id="odItems"></ul>
+      <hr class="od-divider" />
+      <div class="od-total" id="odTotal"></div>
+      <button class="od-close" id="odClose">✕&nbsp; Close</button>
+    </div>
+  </div>
 </div>
 
 <script src="dashboard.js"></script>

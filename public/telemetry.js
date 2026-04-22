@@ -730,19 +730,22 @@ function renderGA(data) {
     return;
   }
 
-  const maxUsers = data.pages[0]?.users || 1;
-  const slots    = Math.max(data.pages.length, 6);
-  const pages    = [...data.pages];
-  while (pages.length < slots) pages.push(null);
+  // Sort: hot (cart/checkout) pages first, then by users desc
+  const sorted = [...data.pages].sort((a, b) => {
+    const aHot = /cart|checkout/i.test(a.title) ? 1 : 0;
+    const bHot = /cart|checkout/i.test(b.title) ? 1 : 0;
+    if (bHot !== aHot) return bHot - aHot;
+    return b.users - a.users;
+  });
 
-  list.innerHTML = pages.map((p, i) => {
-    if (!p) return '<div class="ga-page-row" style="opacity:0;pointer-events:none;flex:1"></div>';
+  const maxUsers = sorted[0]?.users || 1;
+
+  list.innerHTML = sorted.map((p, i) => {
     const pct   = Math.round((p.users / maxUsers) * 100);
-    // Strip " - Outdoor Patio Supplies" suffix for brevity
     const title = p.title.replace(/ [-–] Outdoor Patio Supplies$/i, '') || p.title;
     const isHot = /cart|checkout/i.test(p.title);
     return `
-      <div class="ga-page-row${isHot ? ' ga-page-hot' : ''}" style="flex:1">
+      <div class="ga-page-row${isHot ? ' ga-page-hot' : ''}">
         <div class="ga-page-rank">#${i + 1}</div>
         <div class="ga-page-info">
           <div class="ga-page-title" title="${esc(p.title)}">${esc(title)}</div>
