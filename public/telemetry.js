@@ -561,6 +561,22 @@ const COUNTRY_CODES = {
   'Philippines':'PH', 'Malaysia':'MY', 'Pakistan':'PK', 'Egypt':'EG',
   'Nigeria':'NG', 'Saudi Arabia':'SA', 'United Arab Emirates':'AE',
   'Israel':'IL', 'Ireland':'IE', 'Croatia':'HR',
+  'Dominican Republic':'DO', 'Puerto Rico':'PR', 'Bermuda':'BM',
+  'Jamaica':'JM', 'Cuba':'CU', 'Haiti':'HT', 'Trinidad and Tobago':'TT',
+  'Guatemala':'GT', 'Honduras':'HN', 'El Salvador':'SV', 'Nicaragua':'NI',
+  'Costa Rica':'CR', 'Panama':'PA', 'Ecuador':'EC', 'Bolivia':'BO',
+  'Paraguay':'PY', 'Uruguay':'UY', 'Venezuela':'VE',
+  'Morocco':'MA', 'Algeria':'DZ', 'Tunisia':'TN', 'Ghana':'GH',
+  'Kenya':'KE', 'Ethiopia':'ET', 'Tanzania':'TZ', 'Uganda':'UG',
+  'Cameroon':'CM', 'Ivory Coast':'CI', 'Senegal':'SN',
+  'Iraq':'IQ', 'Iran':'IR', 'Kuwait':'KW', 'Qatar':'QA', 'Bahrain':'BH', 'Oman':'OM', 'Jordan':'JO', 'Lebanon':'LB',
+  'Kazakhstan':'KZ', 'Uzbekistan':'UZ', 'Azerbaijan':'AZ', 'Georgia':'GE', 'Armenia':'AM',
+  'Serbia':'RS', 'Bulgaria':'BG', 'Slovakia':'SK', 'Slovenia':'SI', 'Lithuania':'LT', 'Latvia':'LV', 'Estonia':'EE',
+  'Belarus':'BY', 'Moldova':'MD', 'Bosnia and Herzegovina':'BA', 'North Macedonia':'MK', 'Albania':'AL',
+  'Luxembourg':'LU', 'Iceland':'IS', 'Malta':'MT', 'Cyprus':'CY',
+  'Bangladesh':'BD', 'Sri Lanka':'LK', 'Nepal':'NP', 'Myanmar':'MM', 'Cambodia':'KH',
+  'Turks and Caicos Islands':'TC', 'Cayman Islands':'KY', 'Bahamas':'BS', 'Barbados':'BB',
+  'Guadeloupe':'GP', 'Martinique':'MQ', 'Aruba':'AW', 'Curaçao':'CW',
 };
 
 function flagEmoji(countryName) {
@@ -666,8 +682,13 @@ function renderGaCountries(countries) {
   el.innerHTML = countries.map(c => {
     const name = c.name || '(unknown)';
     const pct  = Math.round((c.users / maxUsers) * 100);
+    const iso2 = (COUNTRY_CODES[name] || '').toLowerCase();
+    const flagImg = iso2
+      ? `<img src="https://flagcdn.com/20x15/${iso2}.png" width="20" height="15" alt="${esc(name)}" style="border-radius:2px;flex-shrink:0;object-fit:cover;" onerror="this.style.display='none'">`
+      : `<span style="width:20px;display:inline-block;text-align:center">🌍</span>`;
     return `
       <div class="ga-country-row">
+        ${flagImg}
         <span class="ga-country-name">${esc(name)}</span>
         <div class="ga-country-bar-wrap">
           <div class="ga-bar-track"><div class="ga-bar-fill" style="width:${pct}%"></div></div>
