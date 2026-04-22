@@ -247,12 +247,16 @@ function renderStatusChart(statusData) {
           },
         },
         datalabels: {
-          display: true,
+          display: (ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            return total > 0 && (ctx.dataset.data[ctx.dataIndex] / total) >= 0.07;
+          },
           color: '#fff',
           anchor: 'center',
           align: 'center',
           textAlign: 'center',
-          font: { size: 22, weight: 'bold' },
+          font: { size: 18, weight: 'bold' },
+          padding: 6,
           formatter: (value, ctx) => {
             const label = ctx.chart.data.labels[ctx.dataIndex];
             return `${label}\n${value}`;
@@ -261,6 +265,31 @@ function renderStatusChart(statusData) {
       },
     },
   });
+}
+
+function fmtTs(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function _psTag(ps) {
+  if (!ps) return '';
+  const cls = ps === 'PAID' ? 'paid' : ps === 'PARTIALLY_REFUNDED' ? 'partial' : 'unpaid';
+  const label = ps === 'PAID' ? 'Paid' : ps === 'PARTIALLY_REFUNDED' ? 'Partial Refund' : 'Unpaid';
+  return `<span class="item-tag item-tag-${cls}">${label}</span>`;
+}
+
+function _fsTag(fs) {
+  if (!fs) return '';
+  const map = {
+    SHIPPED: ['shipped', 'Shipped'], DELIVERED: ['shipped', 'Delivered'],
+    PROCESSING: ['processing', 'Processing'],
+    AWAITING_PROCESSING: ['notshipped', 'Awaiting Processing'],
+  };
+  const [cls, label] = map[fs] || ['default', fs];
+  return `<span class="item-tag item-tag-${cls}">${label}</span>`;
 }
 
 function renderOrders(orders) {
@@ -272,9 +301,11 @@ function renderOrders(orders) {
   }
   list.innerHTML = orders.map(o => {
     _ordersById[o.id] = o;
+    const customer = o.customer && o.customer !== 'Unknown' ? `<div class="item-email">${esc(o.customer)}${o.email ? ' · ' + esc(o.email) : ''}</div>` : '';
+    const meta = `<div class="item-meta"><span class="item-date">${fmtTs(o.createdAt)}</span>${_psTag(o.paymentStatus)}${_fsTag(o.fulfillmentStatus)}</div>`;
     return `
     <li class="stock-item od-clickable" data-order-id="${esc(o.id)}">
-      <span class="stock-name">${esc(o.description)}<small>#${esc(o.id)}</small></span>
+      <span class="stock-name">${esc(o.description)}<small>#${esc(o.id)}</small>${customer}${meta}</span>
       <span class="badge ${badgeClass(o.status)}">${esc(o.status)}</span>
       <span class="rev-blue">${fmt(o.total)}</span>
     </li>`;
@@ -291,9 +322,10 @@ function renderAbandonedOrders(orders) {
   }
   list.innerHTML = orders.map(o => {
     _ordersById[o.id] = o;
+    const meta = `<div class="item-meta"><span class="item-date">${fmtTs(o.createdAt)}</span>${_psTag(o.paymentStatus)}</div>`;
     return `
     <li class="stock-item od-clickable" data-order-id="${esc(o.id)}">
-      <span class="stock-name" title="${esc(o.email)}">${esc(o.customer)}<small>#${esc(o.id)} &middot; ${esc(o.product)}</small></span>
+      <span class="stock-name" title="${esc(o.email)}">${esc(o.customer)}<small>#${esc(o.id)} &middot; ${esc(o.product)}</small><div class="item-email">${esc(o.email)}</div>${meta}</span>
       <span class="rev-red">${fmt(o.total)}</span>
     </li>`;
   }).join('');
@@ -309,9 +341,10 @@ function renderProcessingOrders(orders) {
   }
   list.innerHTML = orders.map(o => {
     _ordersById[o.id] = o;
+    const meta = `<div class="item-meta"><span class="item-date">${fmtTs(o.createdAt)}</span>${_psTag(o.paymentStatus)}${_fsTag(o.fulfillmentStatus)}</div>`;
     return `
     <li class="stock-item od-clickable" data-order-id="${esc(o.id)}">
-      <span class="stock-name">${esc(o.customer)}<small>#${esc(o.id)} &middot; ${esc(o.product)}</small></span>
+      <span class="stock-name">${esc(o.customer)}<small>#${esc(o.id)} &middot; ${esc(o.product)}</small><div class="item-email">${esc(o.email)}</div>${meta}</span>
       <span class="rev-orange">${fmt(o.total)}</span>
     </li>`;
   }).join('');
