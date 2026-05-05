@@ -21,6 +21,15 @@ echo "  Outdoor Patio Supplies — Dashboard Installer (macOS)"
 echo "============================================================"
 echo ""
 
+# ── 0. Atualizar código do repositório ───────────────────────────────────────
+echo "[0/5] Atualizando código (git pull)..."
+cd "$DASHBOARD_DIR"
+if git rev-parse --is-inside-work-tree &>/dev/null; then
+  git pull --ff-only || echo "   ⚠️  git pull falhou — continuando com o código atual."
+else
+  echo "   Diretório não é um repositório git — pulando."
+fi
+
 # ── 1. Homebrew ───────────────────────────────────────────────────────────────
 echo "[1/5] Verificando Homebrew..."
 if ! command -v brew &>/dev/null; then
@@ -88,7 +97,7 @@ echo "   Configurando PM2 para iniciar no boot (launchd)..."
 pm2 startup launchd 2>/dev/null | tail -1 | bash || echo "   ⚠️  Autostart não configurado — execute manualmente: pm2 startup launchd"
 
 echo ""
-echo "[4/5] Status PM2:"
+echo "   Status PM2:"
 pm2 status patio-dashboard
 
 # ── 5. Abrir no browser ───────────────────────────────────────────────────────
