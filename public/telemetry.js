@@ -753,8 +753,8 @@ function renderGA(data) {
 
   // Sort: hot (cart/checkout) pages first, then by users desc
   const sorted = [...data.pages].sort((a, b) => {
-    const aHot = /cart|checkout/i.test(a.title) ? 1 : 0;
-    const bHot = /cart|checkout/i.test(b.title) ? 1 : 0;
+    const aHot = /\bcart\b|\bcheckout\b/i.test(a.title) ? 1 : 0;
+    const bHot = /\bcart\b|\bcheckout\b/i.test(b.title) ? 1 : 0;
     if (bHot !== aHot) return bHot - aHot;
     return b.users - a.users;
   });
@@ -764,7 +764,7 @@ function renderGA(data) {
   list.innerHTML = sorted.map((p, i) => {
     const pct   = Math.round((p.users / maxUsers) * 100);
     const title = p.title.replace(/ [-–] Outdoor Patio Supplies$/i, '') || p.title;
-    const isHot = /cart|checkout/i.test(p.title);
+    const isHot = /\bcart\b|\bcheckout\b/i.test(p.title);
     return `
       <div class="ga-page-row${isHot ? ' ga-page-hot' : ''}">
         <div class="ga-page-rank">#${i + 1}</div>
